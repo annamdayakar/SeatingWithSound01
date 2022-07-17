@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var startRenderLoop = function (engine, canvas) {
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        }
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        var createScene = async function () {
+    // This creates a basic Babylon Scene object (non-mesh)
+    var scene = new BABYLON.Scene(engine);
+
+    var camera = new BABYLON.ArcRotateCamera("camera", BABYLON.Tools.ToRadians(130), BABYLON.Tools.ToRadians(65), 10, BABYLON.Vector3.Zero(), scene);
+        camera.lowerBetaLimit = 0.1;
+        camera.upperBetaLimit = (Math.PI / 2) * 0.99;
+        camera.lowerAlphaLimit = 1.6;
+        camera.upperAlphaLimit = (Math.PI / 2) * 2;
+
+    // This attaches the camera to the canvas
+    camera.attachControl(canvas, true);
+
+    //load a cannon blast sound
+    var cannonBlastSound = new BABYLON.Sound("music", "https://raw.githubusercontent.com/annamdayakar/Seating/main/MagicCoin.mp3", scene);
+
+    if (engine.webGLVersion < 2) {
+        alert("sorry do not work here");
+    }
+
+    // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
+    var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+    // Default intensity is 1. Let's dim the light a small amount
+    light.intensity = 0.7;
+
+    let loadAssets = await BABYLON.SceneLoader.ImportMesh("", "https://raw.githubusercontent.com/annamdayakar/Seating/main/", "Seating.glb", scene);
+
+    var gl = new BABYLON.GlowLayer("glow", scene);
+    gl.intensity = 0.3;
+
+
+    BABYLON.SceneLoader.ImportMesh("", Assets.meshes.Yeti.rootUrl, Assets.meshes.Yeti.filename, scene, function (newMeshes) {
+        newMeshes[0].scaling = new BABYLON.Vector3(0.035, 0.035, 0.035);
+        newMeshes[0].position = new BABYLON.Vector3(-0.4, 0, 0.62);
+        newMeshes[0].rotation = new BABYLON.Vector3(0, 5.5, 0);
+        newMeshes[0].name = "yeti";
+        newMeshes[0].setEnabled(false);
+
+    });
+
+    scene.onPointerObservable.add((pointerInfo) => {
+        switch (pointerInfo.type) {
+            case BABYLON.PointerEventTypes.POINTERDOWN:
+                if (pointerInfo.pickInfo.pickedMesh.name === "Carpet") {
+                    let yetiMesh = scene.getMeshByName("yeti");
+                    cannonBlastSound.play();
+                    yetiMesh.setEnabled(!yetiMesh.isEnabled());
+                  
+                }
+                break;
+        }
+    });
+
+    //Creates a gui label to display the cannon
+    let guiCanvas = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    let guiButton = BABYLON.GUI.Button.CreateSimpleButton("guiButton", "Click on Carpet");
+    guiButton.width = "150px"
+    guiButton.height = "40px";
+    guiButton.color = "white";
+    guiButton.cornerRadius = 5;
+    guiButton.background = "grey";
+    guiButton.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    guiCanvas.addControl(guiButton);
+
+
+
+    return scene;
+};
+                window.initFunction = async function() {
+                    
+                    
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    window.engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        startRenderLoop(engine, canvas);
+        window.scene = createScene();};
+        initFunction().then(() => {scene.then(returnedScene => { sceneToRender = returnedScene; });
+                            
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
